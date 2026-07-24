@@ -1,15 +1,11 @@
 services:
   - type: web
     name: telegram-data-analyst-bot
-
     runtime: docker
-
     dockerfilePath: ./Dockerfile
-
     autoDeploy: true
 
     envVars:
-
       - key: TELEGRAM_BOT_TOKEN
         sync: false
 
