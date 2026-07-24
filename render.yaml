@@ -1,0 +1,41 @@
+services:
+  - type: worker
+    name: telegram-data-analyst-bot
+
+    runtime: docker
+
+    dockerfilePath: ./Dockerfile
+
+    autoDeploy: true
+
+    restartPolicy:
+      type: always
+
+    envVars:
+
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+
+      - key: AIPIPE_TOKEN
+        sync: false
+
+      - key: MODEL
+        value: gpt-4.1-mini
+
+
+      # Object storage for JSONL logs
+
+      - key: S3_ENDPOINT
+        sync: false
+
+      - key: S3_ACCESS_KEY
+        sync: false
+
+      - key: S3_SECRET_KEY
+        sync: false
+
+      - key: S3_BUCKET
+        sync: false
+
+      - key: S3_PUBLIC_URL
+        sync: false
