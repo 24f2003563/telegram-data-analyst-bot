@@ -1,11 +1,15 @@
 services:
   - type: web
     name: telegram-data-analyst-bot
+
     runtime: docker
+
     dockerfilePath: ./Dockerfile
+
     autoDeploy: true
 
     envVars:
+
       - key: TELEGRAM_BOT_TOKEN
         sync: false
 
@@ -15,17 +19,17 @@ services:
       - key: MODEL
         value: gpt-4.1-mini
 
-      - key: S3_ENDPOINT
+      - key: GITHUB_TOKEN
         sync: false
 
-      - key: S3_ACCESS_KEY
+      - key: GITHUB_OWNER
         sync: false
 
-      - key: S3_SECRET_KEY
+      - key: GITHUB_REPO
         sync: false
 
-      - key: S3_BUCKET
-        sync: false
+      - key: GITHUB_BRANCH
+        value: main
 
-      - key: S3_PUBLIC_URL
-        sync: false
+      - key: LOG_FILE_PATH
+        value: run.jsonl
