@@ -5,8 +5,13 @@ import json
 import uuid
 import datetime
 import traceback
+import threading
 
 from dotenv import load_dotenv
+
+from fastapi import FastAPI
+
+import uvicorn
 
 from telegram import Update
 from telegram.ext import (
@@ -34,6 +39,10 @@ MAX_HISTORY = 12
 
 
 
+# -------------------------
+# Telegram message handler
+# -------------------------
+
 async def handle_message(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE
@@ -60,7 +69,6 @@ async def handle_message(
         USER_MEMORY[user_id] = []
 
 
-
     USER_MEMORY[user_id].append(
 
         {
@@ -71,13 +79,10 @@ async def handle_message(
     )
 
 
-    # Keep recent conversation only
-
     USER_MEMORY[user_id] = (
         USER_MEMORY[user_id]
         [-MAX_HISTORY:]
     )
-
 
 
     run_id = str(
@@ -103,7 +108,6 @@ async def handle_message(
 
     try:
 
-
         answer = run_agent(
 
             USER_MEMORY[user_id]
@@ -111,7 +115,7 @@ async def handle_message(
         )
 
 
-        final_answer = {
+        final_response = {
 
             "answer":
                 answer.get(
@@ -124,7 +128,6 @@ async def handle_message(
         }
 
 
-
         USER_MEMORY[user_id].append(
 
             {
@@ -132,7 +135,7 @@ async def handle_message(
 
                 "content":
                     json.dumps(
-                        final_answer,
+                        final_response,
                         ensure_ascii=False
                     )
             }
@@ -140,15 +143,11 @@ async def handle_message(
         )
 
 
-
         log.update(
 
             {
-
                 "status": "success",
-
-                "answer": final_answer
-
+                "answer": final_response
             }
 
         )
@@ -159,17 +158,16 @@ async def handle_message(
         )
 
 
-        final_answer["log_url"] = (
+        final_response["log_url"] = (
             log_url
         )
-
 
 
         await update.message.reply_text(
 
             json.dumps(
 
-                final_answer,
+                final_response,
 
                 ensure_ascii=False
 
@@ -178,19 +176,15 @@ async def handle_message(
         )
 
 
-
     except Exception:
 
 
         log.update(
 
             {
-
-                "status": "error",
-
+                "status": "failed",
                 "error":
                     traceback.format_exc()
-
             }
 
         )
@@ -229,40 +223,113 @@ async def handle_message(
 
 
 
-def main():
+# -------------------------
+# Telegram bot setup
+# -------------------------
+
+telegram_app = (
+
+    Application
+    .builder()
+    .token(
+        TELEGRAM_BOT_TOKEN
+    )
+    .build()
+
+)
 
 
-    app = (
+telegram_app.add_handler(
 
-        Application
-        .builder()
-        .token(
-            TELEGRAM_BOT_TOKEN
-        )
-        .build()
+    MessageHandler(
+
+        filters.TEXT
+        &
+        ~filters.COMMAND,
+
+        handle_message
 
     )
 
-
-    app.add_handler(
-
-        MessageHandler(
-
-            filters.TEXT
-            &
-            ~filters.COMMAND,
-
-            handle_message
-
-        )
-
-    )
+)
 
 
-    app.run_polling()
+
+def start_telegram_bot():
+
+    telegram_app.run_polling()
 
 
+
+# -------------------------
+# FastAPI for Render
+# -------------------------
+
+api = FastAPI()
+
+
+
+@api.get("/")
+def health_check():
+
+    return {
+
+        "status": "running",
+
+        "service":
+            "telegram-data-analyst-bot"
+
+    }
+
+
+
+@api.get("/health")
+def health():
+
+    return {
+
+        "ok": True
+
+    }
+
+
+
+# -------------------------
+# Application start
+# -------------------------
 
 if __name__ == "__main__":
 
-    main()
+
+    telegram_thread = threading.Thread(
+
+        target=start_telegram_bot,
+
+        daemon=True
+
+    )
+
+
+    telegram_thread.start()
+
+
+
+    uvicorn.run(
+
+        api,
+
+        host="0.0.0.0",
+
+        port=int(
+
+            os.environ.get(
+
+                "PORT",
+
+                10000
+
+            )
+
+        )
+
+    )
