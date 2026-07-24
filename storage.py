@@ -2,95 +2,87 @@
 
 import os
 import json
-import uuid
+import base64
 import datetime
-
-import boto3
-from botocore.exceptions import ClientError
+import requests
 
 
-S3_ENDPOINT = os.getenv(
-    "S3_ENDPOINT"
+GITHUB_TOKEN = os.getenv(
+    "GITHUB_TOKEN"
 )
 
-S3_ACCESS_KEY = os.getenv(
-    "S3_ACCESS_KEY"
+GITHUB_OWNER = os.getenv(
+    "GITHUB_OWNER"
 )
 
-S3_SECRET_KEY = os.getenv(
-    "S3_SECRET_KEY"
+GITHUB_REPO = os.getenv(
+    "GITHUB_REPO"
 )
 
-S3_BUCKET = os.getenv(
-    "S3_BUCKET"
+GITHUB_BRANCH = os.getenv(
+    "GITHUB_BRANCH",
+    "main"
 )
 
-S3_PUBLIC_URL = os.getenv(
-    "S3_PUBLIC_URL"
+LOG_FILE_PATH = os.getenv(
+    "LOG_FILE_PATH",
+    "run.jsonl"
 )
-
-
-
-def get_s3_client():
-
-    if not all(
-        [
-            S3_ENDPOINT,
-            S3_ACCESS_KEY,
-            S3_SECRET_KEY,
-            S3_BUCKET
-        ]
-    ):
-        return None
-
-
-    return boto3.client(
-
-        "s3",
-
-        endpoint_url=S3_ENDPOINT,
-
-        aws_access_key_id=S3_ACCESS_KEY,
-
-        aws_secret_access_key=S3_SECRET_KEY
-
-    )
 
 
 
 def upload_log(log_data):
     """
-    Upload JSONL log and return public URL.
+    Upload JSONL logs to GitHub.
+    Returns public raw URL.
     """
 
 
-    filename = (
+    if not all(
+        [
+            GITHUB_TOKEN,
+            GITHUB_OWNER,
+            GITHUB_REPO
+        ]
+    ):
 
-        "logs/"
-
-        +
-
-        datetime.datetime.utcnow()
-        .strftime(
-            "%Y%m%d_%H%M%S"
+        return (
+            "https://github.com/"
+            + str(GITHUB_OWNER)
+            + "/"
+            + str(GITHUB_REPO)
+            + "/raw/"
+            + GITHUB_BRANCH
+            + "/"
+            + LOG_FILE_PATH
         )
 
-        +
 
-        "_"
 
-        +
+    api_url = (
 
-        str(uuid.uuid4())
-
-        +
-
-        ".jsonl"
+        f"https://api.github.com/repos/"
+        f"{GITHUB_OWNER}/"
+        f"{GITHUB_REPO}/contents/"
+        f"{LOG_FILE_PATH}"
 
     )
 
 
-    content = (
+
+    headers = {
+
+        "Authorization":
+            f"Bearer {GITHUB_TOKEN}",
+
+        "Accept":
+            "application/vnd.github+json"
+
+    }
+
+
+
+    new_line = (
 
         json.dumps(
             log_data,
@@ -107,66 +99,119 @@ def upload_log(log_data):
 
     try:
 
-        s3 = get_s3_client()
+        # Get existing file
+
+        response = requests.get(
+            api_url,
+            headers=headers,
+            timeout=30
+        )
 
 
-        if s3 is None:
+        sha = None
 
-            return os.getenv(
 
-                "PUBLIC_LOG_URL",
+        if response.status_code == 200:
 
-                "https://your-host/run.jsonl"
+            file_data = response.json()
 
+            sha = file_data["sha"]
+
+            old_content = base64.b64decode(
+                file_data["content"]
+            ).decode(
+                "utf-8"
             )
 
+        else:
 
-        s3.put_object(
+            old_content = ""
 
-            Bucket=S3_BUCKET,
 
-            Key=filename,
 
-            Body=content.encode(
+        updated_content = (
+            old_content
+            +
+            new_line
+        )
+
+
+
+        encoded = base64.b64encode(
+
+            updated_content.encode(
                 "utf-8"
-            ),
+            )
 
-            ContentType="application/json"
+        ).decode(
+            "utf-8"
+        )
 
+
+
+        payload = {
+
+            "message":
+                "update bot run log",
+
+            "content":
+                encoded,
+
+            "branch":
+                GITHUB_BRANCH
+
+        }
+
+
+        if sha:
+
+            payload["sha"] = sha
+
+
+
+        upload = requests.put(
+
+            api_url,
+
+            headers=headers,
+
+            json=payload,
+
+            timeout=30
+
+        )
+
+
+        upload.raise_for_status()
+
+
+
+        return (
+
+            f"https://raw.githubusercontent.com/"
+            f"{GITHUB_OWNER}/"
+            f"{GITHUB_REPO}/"
+            f"{GITHUB_BRANCH}/"
+            f"{LOG_FILE_PATH}"
+
+        )
+
+
+
+    except Exception as e:
+
+        print(
+            "GitHub log upload failed:",
+            e
         )
 
 
         return (
 
-            S3_PUBLIC_URL.rstrip(
-                "/"
-            )
-
-            +
-
-            "/"
-
-            +
-
-            filename
-
-        )
-
-
-
-    except ClientError as e:
-
-
-        print(
-            "S3 upload error:",
-            e
-        )
-
-
-        return os.getenv(
-
-            "PUBLIC_LOG_URL",
-
-            "https://your-host/run.jsonl"
+            f"https://raw.githubusercontent.com/"
+            f"{GITHUB_OWNER}/"
+            f"{GITHUB_REPO}/"
+            f"{GITHUB_BRANCH}/"
+            f"{LOG_FILE_PATH}"
 
         )
