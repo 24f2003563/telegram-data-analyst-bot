@@ -256,8 +256,12 @@ telegram_app.add_handler(
 
 
 def start_telegram_bot():
+    import asyncio
 
-    telegram_app.run_polling()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    telegram_app.run_polling(stop_signals=None)
 
 
 
