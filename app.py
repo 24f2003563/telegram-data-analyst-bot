@@ -37,7 +37,7 @@ TELEGRAM_BOT_TOKEN = os.environ[
 
 USER_MEMORY = {}
 
-MAX_HISTORY = 12
+MAX_HISTORY = 10
 
 
 
@@ -112,12 +112,14 @@ async def handle_message(
 
         trace = []
 
+        history_for_agent = [
+        msg for msg in USER_MEMORY[user_id]
+        if msg["role"] == "user"
+            ][-3:]
+
         answer = run_agent(
-
-            USER_MEMORY[user_id],
-
+            history_for_agent,
             trace=trace
-
         )
 
         log["trace"] = trace
