@@ -9,7 +9,7 @@ When you message it a question, it:
    columns), runs it, and retries automatically if the code errors out.
 4. Formats the final answer into the exact JSON shape the question asked for.
 5. Replies with `{"answer": ..., "log_url": "..."}` and appends a line to a
-   public JSONL run log on GitHub
+   public JSONL run log on GitHub.
 
 ## Files
 
