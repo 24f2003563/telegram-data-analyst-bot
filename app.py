@@ -108,11 +108,17 @@ async def handle_message(
 
     try:
 
+        trace = []
+
         answer = run_agent(
 
-            USER_MEMORY[user_id]
+            USER_MEMORY[user_id],
+
+            trace=trace
 
         )
+
+        log["trace"] = trace
 
 
         final_response = {

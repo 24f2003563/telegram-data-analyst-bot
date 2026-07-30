@@ -191,26 +191,21 @@ def run_analysis(code, df):
     }
 
 
+    allowed_builtin_names = [
+        "len", "int", "float", "str", "bool", "list", "dict", "tuple", "set",
+        "max", "min", "sum", "sorted", "reversed", "enumerate", "zip", "map",
+        "filter", "round", "abs", "all", "any", "range", "isinstance", "type",
+        "print", "None", "True", "False",
+    ]
+
+    import builtins as _builtins
+
     safe_globals = {
-
         "__builtins__": {
-
-            "len": len,
-
-            "int": int,
-
-            "float": float,
-
-            "str": str,
-
-            "max": max,
-
-            "min": min,
-
-            "sum": sum
-
+            name: getattr(_builtins, name)
+            for name in allowed_builtin_names
+            if hasattr(_builtins, name)
         }
-
     }
 
 
