@@ -14,6 +14,10 @@ from tools import (
     run_analysis,
 )
 
+from known_datasets import find_known_dataset
+
+import pandas as pd
+
 from prompts import (
     DATA_ANALYSIS_PLANNER_PROMPT,
     CODER_PROMPT,
@@ -125,18 +129,50 @@ def run_agent(history, trace=None):
     analysis_result = {"notes": plan.get("notes", "")}
     dataframe = None
 
+    # Look up the last user message text (what the "notes"/keywords should
+    # match against) to check our small hand-curated fallback table first.
+    last_question = ""
+    for msg in reversed(history):
+        if msg.get("role") == "user":
+            last_question = msg.get("content", "")
+            break
+
+    known = find_known_dataset(last_question)
+
     if plan.get("needs_data"):
-        url = plan.get("dataset_url")
-        if url:
-            try:
-                dataframe = load_dataset(url)
-                dataframe = clean_dataframe(dataframe)
-                summary = dataframe_summary(dataframe)
-                analysis_result["dataset_summary"] = summary
-                trace.append({"step": "load_dataset", "url": url, "summary": summary})
-            except Exception as e:
-                analysis_result["dataset_error"] = str(e)
-                trace.append({"step": "load_dataset_failed", "url": url, "error": str(e)})
+        if known:
+            dataframe = clean_dataframe(pd.DataFrame(known["rows"]))
+            summary = dataframe_summary(dataframe)
+            analysis_result["dataset_summary"] = summary
+            analysis_result["dataset_source"] = known["source"]
+            trace.append(
+                {
+                    "step": "load_known_dataset",
+                    "dataset": known["name"],
+                    "source": known["source"],
+                    "summary": summary,
+                }
+            )
+        else:
+            url = plan.get("dataset_url")
+            if url:
+                try:
+                    dataframe = load_dataset(url)
+                    dataframe = clean_dataframe(dataframe)
+                    summary = dataframe_summary(dataframe)
+                    analysis_result["dataset_summary"] = summary
+                    trace.append(
+                        {"step": "load_dataset", "url": url, "summary": summary}
+                    )
+                except Exception as e:
+                    analysis_result["dataset_error"] = str(e)
+                    trace.append(
+                        {
+                            "step": "load_dataset_failed",
+                            "url": url,
+                            "error": str(e),
+                        }
+                    )
 
     if dataframe is not None:
         previous_error = None

@@ -21,6 +21,8 @@ from telegram.ext import (
     filters,
 )
 
+from openai import AuthenticationError
+
 from agent import run_agent
 from storage import upload_log
 
@@ -174,6 +176,55 @@ async def handle_message(
             json.dumps(
 
                 final_response,
+
+                ensure_ascii=False
+
+            )
+
+        )
+
+
+    except AuthenticationError:
+
+
+        log.update(
+
+            {
+                "status": "auth_failed",
+                "hint":
+                    "AIPIPE_TOKEN (or your LLM API key) is invalid or "
+                    "expired - refresh it and update the env var.",
+                "error":
+                    traceback.format_exc()
+            }
+
+        )
+
+
+        log_url = upload_log(
+            log
+        )
+
+
+        error_response = {
+
+            "answer":
+            {
+                "error":
+                    "auth_failed"
+            },
+
+            "log_url":
+                log_url
+
+        }
+
+
+        await update.message.reply_text(
+
+            json.dumps(
+
+                error_response,
 
                 ensure_ascii=False
 
