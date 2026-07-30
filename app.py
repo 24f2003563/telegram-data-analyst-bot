@@ -127,11 +127,7 @@ async def handle_message(
 
         final_response = {
 
-            "answer":
-                answer.get(
-                    "answer",
-                    answer
-                ),
+            "answer": answer,
 
             "log_url": ""
 
